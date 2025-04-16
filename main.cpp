@@ -44,8 +44,8 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
 int main()
 {
     // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
-    QString archivoEntrada = "I_O.bmp";
-    QString archivoSalida = "I_D.bmp";
+    QString archivoEntrada = "Caso1/I_M.bmp";
+    QString archivoSalida = "Caso1/I_D.bmp";
 
     // Variables para almacenar las dimensiones de la imagen
     int height = 0;
@@ -77,7 +77,7 @@ int main()
     int n_pixels = 0;
 
     // Carga los datos de enmascaramiento desde un archivo .txt (semilla + valores RGB)
-    unsigned int *maskingData = loadSeedMasking("M1.txt", seed, n_pixels);
+    unsigned int *maskingData = loadSeedMasking("Caso1/M1.txt", seed, n_pixels);
 
     // Muestra en consola los primeros valores RGB leídos desde el archivo de enmascaramiento
     for (int i = 0; i < n_pixels * 3; i += 3) {
@@ -262,21 +262,8 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
 
     // Mostrar información de control en consola
     cout << "Semilla: " << seed << endl;
-    cout << "Cantidad de píxeles leídos: " << n_pixels << endl;
+    cout << "Cantidad de pixeles leidos: " << n_pixels << endl;
 
     // Retornar el puntero al arreglo con los datos RGB
     return RGB;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
