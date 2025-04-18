@@ -9,132 +9,148 @@ using namespace std;
 unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto);
 bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida);
 unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles);
-
+void rotarBitsDerecha(unsigned char* imagen, int bits, int tamaño);
+void rotarBitsIzquierda(unsigned char* imagen, int bits, int tamaño);
+void aplicarXOR(unsigned char* imgA, unsigned char* imgB, int tamaño);
+//main
 int main()
 {
-    QString rutaImagenEntrada = "Caso1/I_M.bmp";
-    QString rutaImagenSalida = "Caso1/I_D.bmp";
+    // 1. Cargar imagen original
+    QString rutaImgEntrada = "Caso1/I_O.bmp";
+    QString rutaImgM = "Caso1/I_M.bmp"; //Para hacer el XOR
+    QString rutaImgRotada = "Caso1/I_Rotada.bmp";
+    QString rutaImgRestaurada = "Caso1/I_Restaurada.bmp";
+    QString rutaImgXOR = "Caso1/I_XOR.bmp";
+    QString rutaXORrestaurada = "Caso1/I_XORRestaurada.bmp";
+    int alto = 0, ancho = 0;
+    unsigned char* datosPixeles = cargarPixeles(rutaImgEntrada, ancho, alto);
 
-    int alto = 0;
-    int ancho = 0;
-
-    unsigned char *datosPixeles = cargarPixeles(rutaImagenEntrada, ancho, alto);
-
-    for (int i = 0; i < ancho * alto * 3; i += 3) {
-        datosPixeles[i] = i;       // Canal rojo
-        datosPixeles[i + 1] = i;   // Canal verde
-        datosPixeles[i + 2] = i;   // Canal azul
+    if (datosPixeles == nullptr) {
+        cout << "Error: No se pudo cargar la imagen." << endl;
+        return 1;
     }
 
-    bool exportado = exportarImagen(datosPixeles, ancho, alto, rutaImagenSalida);
+    // 2. Aplicar rotación de 3 bits a la derecha
+    rotarBitsDerecha(datosPixeles, 3, ancho * alto * 3);
+    if (!exportarImagen(datosPixeles, ancho, alto, rutaImgRotada)) {
+        cout << "Error al guardar imagen rotada." << endl;
+    }
 
-    cout << "Exportacion: " << (exportado ? "Exito" : "Fallo") << endl;
+    // 3. Revertir rotación (3 bits a la izquierda)
+    rotarBitsIzquierda(datosPixeles, 3, ancho * alto * 3);
+    if (!exportarImagen(datosPixeles, ancho, alto, rutaImgRestaurada)) {
+        cout << "Error al guardar imagen restaurada." << endl;
+    }
 
+    // 4. Liberar memoria
     delete[] datosPixeles;
-    datosPixeles = nullptr;
 
-    int semilla = 0;
-    int num_pixeles = 0;
-
-    unsigned int *datosEnmascaramiento = cargarSemillaYEnmascaramiento("Caso1/M1.txt", semilla, num_pixeles);
+    /* Opcional: Cargar datos de enmascaramiento para pruebas
+    int semilla = 0, num_pixeles = 0;
+    unsigned int* datosEnmascaramiento = cargarSemillaYEnmascaramiento("Caso1/M1.txt", semilla, num_pixeles);
 
     if (datosEnmascaramiento != nullptr) {
+        cout << "\nDatos de enmascaramiento:" << endl;
         for (int i = 0; i < num_pixeles * 3; i += 3) {
-            cout << "Pixel " << i / 3 << ": ("
+            cout << "Pixel " << i/3 << ": ("
                  << datosEnmascaramiento[i] << ", "
-                 << datosEnmascaramiento[i + 1] << ", "
-                 << datosEnmascaramiento[i + 2] << ")" << endl;
+                 << datosEnmascaramiento[i+1] << ", "
+                 << datosEnmascaramiento[i+2] << ")" << endl;
         }
-
         delete[] datosEnmascaramiento;
-        datosEnmascaramiento = nullptr;
     }
-
+    */
+    // === PRUEBA DE XOR ===
+    // Volvemos a cargar la imagen original
+    datosPixeles = cargarPixeles(rutaImgEntrada, ancho, alto);
+    unsigned char* datosIM = cargarPixeles(rutaImgM, ancho, alto); // imagen IM
+    if (datosPixeles == nullptr || datosIM == nullptr) {
+        cout << "Error al cargar imágenes para XOR." << endl;
+        delete[] datosPixeles;
+        delete[] datosIM;
+        return 1;
+    }
+    // Aplicamos XOR entre la imagen original y la IM
+    aplicarXOR(datosPixeles, datosIM, ancho * alto * 3);
+    if (!exportarImagen(datosPixeles, ancho, alto, rutaImgXOR)) {
+        cout << "Error al guardar imagen XOR." << endl;
+    }
+    // Revertimos el XOR con la misma IM
+    aplicarXOR(datosPixeles, datosIM, ancho * alto * 3); // Se recupera la imagen original
+    if (!exportarImagen(datosPixeles, ancho, alto, rutaXORrestaurada)) {
+        cout << "Error al guardar imagen XOR restaurada." << endl;
+    }
+    // Liberamos memoria
+    delete[] datosPixeles;
+    delete[] datosIM;
     return 0;
 }
 
-// Cargar píxeles de imagen BMP
-unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto){
+// Implementación de funciones
+unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto) {
     QImage imagen(rutaEntrada);
-
     if (imagen.isNull()) {
         cout << "Error: No se pudo cargar la imagen BMP." << endl;
         return nullptr;
     }
 
     imagen = imagen.convertToFormat(QImage::Format_RGB888);
-
     ancho = imagen.width();
     alto = imagen.height();
 
-    int tamanoDatos = ancho * alto * 3;
-    unsigned char* datosPixeles = new unsigned char[tamanoDatos];
-
+    unsigned char* datosPixeles = new unsigned char[ancho * alto * 3];
     for (int y = 0; y < alto; ++y) {
-        const uchar* lineaSrc = imagen.scanLine(y);
-        unsigned char* lineaDst = datosPixeles + y * ancho * 3;
-        memcpy(lineaDst, lineaSrc, ancho * 3);
+        memcpy(datosPixeles + y * ancho * 3, imagen.scanLine(y), ancho * 3);
     }
 
     return datosPixeles;
 }
 
-// Exportar imagen BMP a archivo
-bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida){
+bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida) {
     QImage imagenSalida(ancho, alto, QImage::Format_RGB888);
-
     for (int y = 0; y < alto; ++y) {
         memcpy(imagenSalida.scanLine(y), datosPixeles + y * ancho * 3, ancho * 3);
     }
-
-    if (!imagenSalida.save(rutaSalida, "BMP")) {
-        cout << "Error: No se pudo guardar la imagen BMP modificada." << endl;
-        return false;
-    } else {
-        cout << "Imagen BMP modificada guardada como " << rutaSalida.toStdString() << endl;
-        return true;
-    }
+    return imagenSalida.save(rutaSalida, "BMP");
 }
 
-// Cargar semilla y valores RGB desde archivo
-unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles){
-    num_pixeles = 0;
-
+unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles) {
     ifstream archivo(rutaArchivo);
     if (!archivo.is_open()) {
-        cout << "No se pudo abrir el archivo." << endl;
+        cout << "Error al abrir archivo de enmascaramiento." << endl;
         return nullptr;
     }
 
-    archivo >> semilla;
-
+    // Contar número de píxeles
+    num_pixeles = 0;
     int r, g, b;
-    while (archivo >> r >> g >> b) {
-        num_pixeles++; // contar la cantidad de píxeles
-    }
+    archivo >> semilla; // Leer semilla
+    while (archivo >> r >> g >> b) num_pixeles++;
 
-    archivo.close();
-    archivo.open(rutaArchivo);
-    if (!archivo.is_open()) {
-        cout << "Error al reabrir el archivo." << endl;
-        return nullptr;
-    }
-
-    unsigned int* RGB = new unsigned int[num_pixeles * 3];
-
-    archivo >> semilla;
-
+    // Leer datos
+    archivo.clear();
+    archivo.seekg(0);
+    unsigned int* datos = new unsigned int[num_pixeles * 3];
+    archivo >> semilla; // Leer semilla nuevamente
     for (int i = 0; i < num_pixeles * 3; i += 3) {
-        archivo >> r >> g >> b;
-        RGB[i] = r;
-        RGB[i + 1] = g;
-        RGB[i + 2] = b;
+        archivo >> datos[i] >> datos[i+1] >> datos[i+2];
     }
 
-    archivo.close();
+    return datos;
+}
 
-    cout << "Semilla: " << semilla << endl;
-    cout << "Cantidad de pixeles leidos: " << num_pixeles << endl;
-
-    return RGB;
+void rotarBitsDerecha(unsigned char* imagen, int bits, int tamaño) {
+    for (int i = 0; i < tamaño; i++) {
+        imagen[i] = (imagen[i] >> bits) | (imagen[i] << (8 - bits));
+    }
+}
+void rotarBitsIzquierda(unsigned char* imagen, int bits, int tamaño) {
+    for (int i = 0; i < tamaño; i++) {
+        imagen[i] = (imagen[i] << bits) | (imagen[i] >> (8 - bits));
+    }
+}
+void aplicarXOR(unsigned char* imgA, unsigned char* imgB, int tamaño) {
+    for (int i = 0; i < tamaño; ++i) {
+        imgA[i] = imgA[i] ^ imgB[i];
+    }
 }

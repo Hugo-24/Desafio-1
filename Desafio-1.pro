@@ -1,6 +1,8 @@
 QT += core gui
 CONFIG += console c++17
-SOURCES += main.cpp
+SOURCES += pruebas.cpp\
+main.cpp\
+main-traducido.cpp
 DISTFILES += \
 Caso1/*.txt\
 Caso1/*.BMP\
