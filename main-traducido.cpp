@@ -54,87 +54,65 @@ int main()
 }
 
 // Cargar píxeles de imagen BMP
-unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto){
+unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto) {
     QImage imagen(rutaEntrada);
-
     if (imagen.isNull()) {
         cout << "Error: No se pudo cargar la imagen BMP." << endl;
         return nullptr;
     }
-
     imagen = imagen.convertToFormat(QImage::Format_RGB888);
-
     ancho = imagen.width();
     alto = imagen.height();
-
-    int tamanoDatos = ancho * alto * 3;
-    unsigned char* datosPixeles = new unsigned char[tamanoDatos];
-
+    int dataSize = ancho * alto * 3;
+    unsigned char* datosPixeles = new unsigned char[dataSize];
     for (int y = 0; y < alto; ++y) {
-        const uchar* lineaSrc = imagen.scanLine(y);
-        unsigned char* lineaDst = datosPixeles + y * ancho * 3;
-        memcpy(lineaDst, lineaSrc, ancho * 3);
+        const uchar* srcLine = imagen.scanLine(y);
+        unsigned char* dstLine = datosPixeles + y * ancho * 3;
+        memcpy(dstLine, srcLine, ancho * 3);
     }
-
     return datosPixeles;
 }
-
-// Exportar imagen BMP a archivo
-bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida){
+bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida) {
     QImage imagenSalida(ancho, alto, QImage::Format_RGB888);
-
     for (int y = 0; y < alto; ++y) {
         memcpy(imagenSalida.scanLine(y), datosPixeles + y * ancho * 3, ancho * 3);
     }
-
     if (!imagenSalida.save(rutaSalida, "BMP")) {
-        cout << "Error: No se pudo guardar la imagen BMP modificada." << endl;
+        cout << "Error: No se pudo guardar la imagen BMP modificada.";
         return false;
     } else {
         cout << "Imagen BMP modificada guardada como " << rutaSalida.toStdString() << endl;
         return true;
     }
 }
-
-// Cargar semilla y valores RGB desde archivo
-unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles){
-    num_pixeles = 0;
-
+unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles) {
     ifstream archivo(rutaArchivo);
     if (!archivo.is_open()) {
         cout << "No se pudo abrir el archivo." << endl;
         return nullptr;
     }
-
     archivo >> semilla;
-
     int r, g, b;
+    num_pixeles = 0;
     while (archivo >> r >> g >> b) {
-        num_pixeles++; // contar la cantidad de píxeles
+        num_pixeles++;
     }
-
     archivo.close();
     archivo.open(rutaArchivo);
     if (!archivo.is_open()) {
         cout << "Error al reabrir el archivo." << endl;
         return nullptr;
     }
-
-    unsigned int* RGB = new unsigned int[num_pixeles * 3];
-
     archivo >> semilla;
-
+    unsigned int* rgb = new unsigned int[num_pixeles * 3];
     for (int i = 0; i < num_pixeles * 3; i += 3) {
         archivo >> r >> g >> b;
-        RGB[i] = r;
-        RGB[i + 1] = g;
-        RGB[i + 2] = b;
+        rgb[i] = r;
+        rgb[i + 1] = g;
+        rgb[i + 2] = b;
     }
-
     archivo.close();
-
     cout << "Semilla: " << semilla << endl;
     cout << "Cantidad de pixeles leidos: " << num_pixeles << endl;
-
-    return RGB;
+    return rgb;
 }
