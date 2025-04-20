@@ -190,25 +190,14 @@ void aplicarXOR(unsigned char* imgA, unsigned char* imgB, int tamaño) {
     }
 }
 bool validarEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valorestxt, int semilla, int num_pixeles) {
-    cout << "Comparando primeros valores del enmascaramiento..." << endl;
     for (int k = 0; k < num_pixeles * 3; ++k) {
         int pos = k + semilla;
         unsigned int suma = imagen[pos] + mascara[k];
-
-        if (k < 10) {  // Mostrar los primeros 10 para depuracion
-            cout << "Pos " << pos
-                 << " -> imagen[" << pos << "] = " << (int)imagen[pos]
-                 << ", mascara[" << k << "] = " << (int)mascara[k]
-                 << ", suma = " << suma
-                 << ", esperado = " << valorestxt[k] << endl;
-        }
-
         if (suma != valorestxt[k]) {
             cout << "Diferencia encontrada en k = " << k << ", suma = " << suma << ", esperado = " << valorestxt[k] << endl;
             return false;
         }
     }
-
     cout << "Todos los valores del enmascaramiento coinciden." << endl;
     return true;
 }
