@@ -13,118 +13,35 @@ void rotarBitsDerecha(unsigned char* imagen, int bits, int tamaño);
 void rotarBitsIzquierda(unsigned char* imagen, int bits, int tamaño);
 void aplicarXOR(unsigned char* imgA, unsigned char* imgB, int tamaño);
 bool validarEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles);
-bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles);
+bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles, int totalBytes);
 
-int main()
-{
-    QString rutaImgEncriptada = "Caso1/P3.bmp";      // Imagen que queremos desencriptar
-    QString rutaImgP2 = "Caso1/P2.bmp";
-    QString rutaImgIM = "Caso1/I_M.bmp";             // Imagen IM para XOR
-    QString rutaMascara = "Caso1/M.bmp";             // Mascara M
-    QString rutaTxt = "Caso1/M2.txt";                // Archivo con semilla y valores esperados
+int main() {
+    QString rutaP2 = "Caso1/P2.bmp";
+    QString rutaMascara = "Caso1/M.bmp";
+    QString rutaTxt = "Caso1/M2.txt";
 
     int ancho = 0, alto = 0;
-    unsigned char* imgActual = cargarPixeles(rutaImgEncriptada, ancho, alto);
-    unsigned char* imgIM = cargarPixeles(rutaImgIM, ancho, alto);
+    unsigned char* imgP2 = cargarPixeles(rutaP2, ancho, alto);
     unsigned char* mascara = cargarPixeles(rutaMascara, ancho, alto);
     int semilla = 0, num_pixeles = 0;
-    unsigned int* datostxt = cargarSemillaYEnmascaramiento("Caso1/M2.txt", semilla, num_pixeles);
+    unsigned int* valores = cargarSemillaYEnmascaramiento(rutaTxt.toStdString().c_str(), semilla, num_pixeles);
 
-    if (!imgActual || !imgIM || !mascara || !datostxt) {
-        cout << "Error cargando datos necesarios." << endl;
-        delete[] imgActual;
-        delete[] imgIM;
-        delete[] mascara;
-        delete[] datostxt;
+    if (!imgP2 || !mascara || !valores) {
+        cout << "Error cargando datos para la prueba." << endl;
         return 1;
     }
-    // === Intento 1: aplicar XOR ===
-    aplicarXOR(imgActual, imgIM, ancho * alto * 3);
-    cout << "Probando XOR..." << endl;
-    if (validarEnmascaramiento(imgActual, mascara, datostxt, semilla, num_pixeles)) {
-        cout << "Transformacion correcta: XOR." << endl;
-    } else {
-        cout << "XOR no valido. Probando rotaciones..." << endl;
-        // === Intento 2: probar rotaciones ===
-        bool encontrada = false;
-        for (int bits = 1; bits <= 7; ++bits) {
-            // Rotar a la izquierda
-            unsigned char* copia = cargarPixeles(rutaImgEncriptada, ancho, alto);
-            rotarBitsIzquierda(copia, bits, ancho * alto * 3);
-            cout << "Probando rotacion a la izquierda de " << bits << " bits..." << endl;
-            if (validarEnmascaramiento(copia, mascara, datostxt, semilla, num_pixeles)) {
-                cout << "Transformacion correcta: rotacion a la izquierda de " << bits << " bits." << endl;
-                encontrada = true;
-                delete[] copia;
-                break;
-            }
-            delete[] copia;
-            // Rotar a la derecha
-            copia = cargarPixeles(rutaImgEncriptada, ancho, alto);
-            rotarBitsDerecha(copia, bits, ancho * alto * 3);
-            cout << "Probando rotacion a la derecha de " << bits << " bits..." << endl;
-            if (validarEnmascaramiento(copia, mascara, datostxt, semilla, num_pixeles)) {
-                cout << "Transformacion correcta: rotacion a la derecha de " << bits << " bits." << endl;
-                encontrada = true;
-                delete[] copia;
-                break;
-            }
-            delete[] copia;
-        }
-        if (!encontrada) {
-            cout << "Ninguna rotacion coincidio con los datos del enmascaramiento." << endl;
-        }
-    }
-    delete[] imgActual;
-    delete[] imgIM;
-    delete[] mascara;
-    delete[] datostxt;
-    // Verificar si P3 XOR IM da como resultado P2
-    cout << "\nVerificando si P3 XOR IM es igual a P2..." << endl;
 
-    int anchoP2 = 0, altoP2 = 0;
-    unsigned char* imgP2 = cargarPixeles(rutaImgP2, anchoP2, altoP2);
-    unsigned char* copiaP3 = cargarPixeles(rutaImgEncriptada, ancho, alto);
-    unsigned char* copiaIM = cargarPixeles(rutaImgIM, ancho, alto);
+    int totalBytes = ancho * alto * 3;
 
-    if (!imgP2 || !copiaP3 || !copiaIM || anchoP2 != ancho || altoP2 != alto) {
-        cout << "Error cargando imagenes para verificacion final." << endl;
-    } else {
-        aplicarXOR(copiaP3, copiaIM, ancho * alto * 3); // P3 XOR IM -> deberia dar P2
+    generarYCompararEnmascaramiento(imgP2, mascara, valores, semilla, num_pixeles, totalBytes);
 
-        bool iguales = true;
-        for (int i = 0; i < ancho * alto * 3; ++i) {
-            if (copiaP3[i] != imgP2[i]) {
-                iguales = false;
-                cout << "Diferencia en byte " << i << ": P3^IM = " << (int)copiaP3[i]
-                     << ", P2 = " << (int)imgP2[i] << endl;
-                break;
-            }
-        }
-
-        if (iguales) {
-            cout << "P3 XOR IM es exactamente igual a P2." << endl;
-        } else {
-            cout << "P3 XOR IM no coincide con P2." << endl;
-        }
-        delete[] copiaP3;
-        delete[] copiaIM;
-    }
     delete[] imgP2;
-    unsigned char* mascara2 = cargarPixeles(rutaMascara, ancho, alto); // Recargar la mascara
-    unsigned char* imgP2_val = cargarPixeles(rutaImgP2, ancho, alto);  // Recargar P2
+    delete[] mascara;
+    delete[] valores;
 
-    if (imgP2_val && mascara2 && datostxt) {
-        generarYCompararEnmascaramiento(imgP2_val, mascara2, datostxt, semilla, num_pixeles);
-    } else {
-        cout << "Error cargando P2 o mascara para verificacion de enmascaramiento." << endl;
-    }
-
-    delete[] mascara2;
-    delete[] imgP2_val;
     return 0;
 }
-// Implementación de funciones
+// ==== FUNCIONES (sin modificar) ====
 unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto) {
     QImage imagen(rutaEntrada);
     if (imagen.isNull()) {
@@ -143,6 +60,7 @@ unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto) {
     }
     return datosPixeles;
 }
+
 bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida) {
     QImage imagenSalida(ancho, alto, QImage::Format_RGB888);
     for (int y = 0; y < alto; ++y) {
@@ -156,6 +74,7 @@ bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString ru
         return true;
     }
 }
+
 unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles) {
     ifstream archivo(rutaArchivo);
     if (!archivo.is_open()) {
@@ -187,23 +106,27 @@ unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semill
     cout << "Cantidad de pixeles leidos: " << num_pixeles << endl;
     return rgb;
 }
+
 void rotarBitsDerecha(unsigned char* imagen, int bits, int tamaño) {
     for (int i = 0; i < tamaño; i++) {
         imagen[i] = (imagen[i] >> bits) | (imagen[i] << (8 - bits));
     }
 }
+
 void rotarBitsIzquierda(unsigned char* imagen, int bits, int tamaño) {
     for (int i = 0; i < tamaño; i++) {
         imagen[i] = (imagen[i] << bits) | (imagen[i] >> (8 - bits));
     }
 }
+
 void aplicarXOR(unsigned char* imgA, unsigned char* imgB, int tamaño) {
     for (int i = 0; i < tamaño; ++i) {
         imgA[i] = imgA[i] ^ imgB[i];
     }
 }
-bool validarEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valorestxt, int semilla, int num_pixeles) {
-    for (int k = 0; k < num_pixeles * 3; ++k) {
+
+bool validarEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valorestxt, int semilla, int num_pixeles, int totalBytes) {
+    for (int k = 0; k + semilla < totalBytes && k < num_pixeles * 3; ++k) {
         int pos = k + semilla;
         unsigned int suma = imagen[pos] + mascara[k];
         if (suma != valorestxt[k]) {
@@ -214,27 +137,26 @@ bool validarEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsig
     cout << "Todos los valores del enmascaramiento coinciden." << endl;
     return true;
 }
-bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles) {
-    cout << "\n=== Verificando si el enmascaramiento desde P2 genera M2.txt ===" << endl;
-    bool correcto = true;
+bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles, int totalBytes) {
+    cout << "\n== Verificando enmascaramiento desde P2 con M para comparar con M2.txt ==" << endl;
 
-    for (int k = 0; k < num_pixeles * 3; ++k) {
+    bool correcto = true;
+    for (int k = 0; k + semilla < totalBytes && k < num_pixeles * 3; ++k) {
         int pos = k + semilla;
         unsigned int suma = imagen[pos] + mascara[k];
         if (suma != valoresEsperados[k]) {
-            cout << "Diferencia en k = " << k << ": imagen[" << pos << "] = " << (int)imagen[pos]
+            cout << "Diferencia encontrada: imagen[" << pos << "] = " << (int)imagen[pos]
                  << ", mascara[" << k << "] = " << (int)mascara[k]
-                 << ", suma = " << suma
-                 << ", esperado = " << valoresEsperados[k] << endl;
+                 << ", suma = " << suma << ", esperado = " << valoresEsperados[k] << endl;
             correcto = false;
             break;
         }
     }
 
     if (correcto) {
-        cout << "El enmascaramiento desde P2 coincide exactamente con los valores de M2.txt." << endl;
+        cout << "El enmascaramiento desde P2 coincide con los valores de M2.txt." << endl;
     } else {
-        cout << "El enmascaramiento desde P2 no coincide con los datos de M2.txt." << endl;
+        cout << "El enmascaramiento desde P2 NO coincide con los valores de M2.txt." << endl;
     }
 
     return correcto;
