@@ -14,7 +14,7 @@ void rotarBitsIzquierda(unsigned char* imagen, int bits, int tamaño);
 void aplicarXOR(unsigned char* imgA, unsigned char* imgB, int tamaño);
 bool validarEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles);
 bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles);
-void identificarTransformacion(unsigned char* imgEncriptada, unsigned char* imgIM, unsigned char* mascara, unsigned int* datosTxt, int ancho, int alto, int semilla, int num_pixeles);
+unsigned char* identificarTransformaciones(unsigned char* imgEncriptada, unsigned char* imgIM, unsigned char* mascara, unsigned int* datosTxt, int semilla, int num_pixeles, int tamaño);
 
 int main()
 {
@@ -26,7 +26,7 @@ int main()
 
     int ancho = 0, alto = 0;
 
-    // Verificación directa de P2 con el archivo M2.txt
+    // Verificación directa de I_O con el archivo M0.txt
     unsigned char* img = cargarPixeles(rutaImg, ancho, alto);
     unsigned char* mascara = cargarPixeles(rutaMascara, ancho, alto);
     int semilla = 0, num_pixeles = 0;
@@ -56,7 +56,15 @@ int main()
         return 1;
     }
 
-    identificarTransformacion(imgP1, imgIM, mascara, datostxt, ancho, alto, semilla, num_pixeles);
+    int tamaño = ancho * alto * 3;
+    unsigned char* posibleIO = identificarTransformaciones(imgP1, imgIM, mascara, datostxt, semilla, num_pixeles, tamaño);
+
+    if (posibleIO) {
+        exportarImagen(posibleIO, ancho, alto, "Caso1/Posible_I_O.bmp");
+        delete[] posibleIO;
+    } else {
+        cout << "No se encontro una transformacion valida." << endl;
+    }
 
     delete[] imgP1;
     delete[] imgIM;
@@ -93,7 +101,6 @@ int main()
     delete[] posibleI_O;
     return 0;
 }
-
 // ==== FUNCIONES (sin modificar) ====
 unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto) {
     QImage imagen(rutaEntrada);
@@ -215,21 +222,15 @@ bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* masca
 
     return correcto;
 }
-void identificarTransformacion(unsigned char* imgEncriptada, unsigned char* imgIM, unsigned char* mascara, unsigned int* datosTxt, int ancho, int alto, int semilla, int num_pixeles)
-{
-    int tamaño = ancho * alto * 3;
-
+unsigned char* identificarTransformaciones(unsigned char* imgEncriptada, unsigned char* imgIM, unsigned char* mascara, unsigned int* datosTxt, int semilla, int num_pixeles, int tamaño) {
     // === Intento 1: aplicar XOR ===
     unsigned char* copiaXOR = new unsigned char[tamaño];
     memcpy(copiaXOR, imgEncriptada, tamaño);
     aplicarXOR(copiaXOR, imgIM, tamaño);
     cout << "Probando XOR..." << endl;
-
     if (validarEnmascaramiento(copiaXOR, mascara, datosTxt, semilla, num_pixeles)) {
         cout << "Transformacion correcta: XOR." << endl;
-        exportarImagen(copiaXOR, ancho, alto, "Caso1/Posible_I_O.bmp");
-        delete[] copiaXOR;
-        return;
+        return copiaXOR;
     }
     delete[] copiaXOR;
     cout << "XOR no valido. Probando rotaciones..." << endl;
@@ -243,9 +244,7 @@ void identificarTransformacion(unsigned char* imgEncriptada, unsigned char* imgI
         cout << "Probando rotacion a la izquierda de " << bits << " bits..." << endl;
         if (validarEnmascaramiento(copia, mascara, datosTxt, semilla, num_pixeles)) {
             cout << "Transformacion correcta: rotacion a la izquierda de " << bits << " bits." << endl;
-            exportarImagen(copia, ancho, alto, "Caso1/Posible_I_O.bmp");
-            delete[] copia;
-            return;
+            return copia;
         }
         delete[] copia;
 
@@ -256,12 +255,11 @@ void identificarTransformacion(unsigned char* imgEncriptada, unsigned char* imgI
         cout << "Probando rotacion a la derecha de " << bits << " bits..." << endl;
         if (validarEnmascaramiento(copia, mascara, datosTxt, semilla, num_pixeles)) {
             cout << "Transformacion correcta: rotacion a la derecha de " << bits << " bits." << endl;
-            exportarImagen(copia, ancho, alto, "Caso1/Posible_I_O.bmp");
-            delete[] copia;
-            return;
+            return copia;
         }
         delete[] copia;
     }
 
     cout << "Ninguna rotacion coincidio con los datos del enmascaramiento." << endl;
+    return nullptr;
 }
