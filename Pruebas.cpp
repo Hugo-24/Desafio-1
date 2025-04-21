@@ -16,40 +16,36 @@ bool validarEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsig
 bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* mascara, unsigned int* valoresEsperados, int semilla, int num_pixeles);
 unsigned char* identificarTransformaciones(unsigned char* imgEncriptada, unsigned char* imgIM, unsigned char* mascara, unsigned int* datosTxt, int semilla, int num_pixeles, int tamaño);
 
+
 int main()
 {
-    QString rutaImgP1 = "Caso1/P1.bmp";
-    QString rutaImg = "Caso1/I_O.bmp";
+    // Rutas de las imágenes y archivos
+    QString rutaImgI_D = "Caso1/I_D.bmp";  // Imagen encriptada (I_D)
     QString rutaImgIM = "Caso1/I_M.bmp";
     QString rutaMascara = "Caso1/M.bmp";
-    QString rutatxt = "Caso1/M0.txt";
+    QString rutatxt = "Caso1/M2.txt";  // Para validar el enmascaramiento después de transformaciones
 
     int ancho = 0, alto = 0;
 
-    // Verificación directa de I_O con el archivo M0.txt
-    unsigned char* img = cargarPixeles(rutaImg, ancho, alto);
+    // Cargar imágenes y otros datos necesarios
+    unsigned char* imgI_D = cargarPixeles(rutaImgI_D, ancho, alto);  // I_D (antes P3)
     unsigned char* mascara = cargarPixeles(rutaMascara, ancho, alto);
     int semilla = 0, num_pixeles = 0;
     unsigned int* datostxt = cargarSemillaYEnmascaramiento(rutatxt.toStdString().c_str(), semilla, num_pixeles);
 
-    if (!img || !mascara || !datostxt) {
+    if (!imgI_D || !mascara || !datostxt) {
         cout << "Error cargando datos para la prueba." << endl;
-        delete[] img;
+        delete[] imgI_D;
         delete[] mascara;
         delete[] datostxt;
         return 1;
     }
 
-    generarYCompararEnmascaramiento(img, mascara, datostxt, semilla, num_pixeles);
-    delete[] img;
-
-    // Probar transformaciones sobre la imagen encriptada (P1)
-    unsigned char* imgP1 = cargarPixeles(rutaImgP1, ancho, alto);
+    // Prueba de transformaciones sobre la imagen encriptada (I_D -> P2)
     unsigned char* imgIM = cargarPixeles(rutaImgIM, ancho, alto);
 
-    if (!imgP1 || !imgIM || !mascara || !datostxt) {
+    if (!imgIM || !mascara || !datostxt) {
         cout << "Error cargando datos necesarios." << endl;
-        delete[] imgP1;
         delete[] imgIM;
         delete[] mascara;
         delete[] datostxt;
@@ -57,51 +53,54 @@ int main()
     }
 
     int tamaño = ancho * alto * 3;
-    unsigned char* posibleIO = identificarTransformaciones(imgP1, imgIM, mascara, datostxt, semilla, num_pixeles, tamaño);
 
-    if (posibleIO) {
-        exportarImagen(posibleIO, ancho, alto, "Caso1/Posible_I_O.bmp");
-        delete[] posibleIO;
+    // Identificar transformaciones de I_D usando IM y verificar enmascaramiento con M2.txt
+    unsigned char* posibleP2 = identificarTransformaciones(imgI_D, imgIM, mascara, datostxt, semilla, num_pixeles, tamaño);
+
+    if (posibleP2) {
+        exportarImagen(posibleP2, ancho, alto, "Caso1/Posible_P2.bmp");
+        delete[] posibleP2;
     } else {
-        cout << "No se encontro una transformacion valida." << endl;
+        cout << "No se encontró una transformación válida para P2." << endl;
     }
 
-    delete[] imgP1;
+    delete[] imgI_D;
     delete[] imgIM;
     delete[] mascara;
     delete[] datostxt;
 
-    cout << "Comparando Posible_I_O con I_O" << endl;
-    int anchoI_O = 0, altoI_O = 0;
-    int anchoPosible = 0, altoPosible = 0;
-    unsigned char* realI_O = cargarPixeles("Caso1/I_O.bmp", anchoI_O, altoI_O);
-    unsigned char* posibleI_O = cargarPixeles("Caso1/Posible_I_O.bmp", anchoPosible, altoPosible);
+    // Comparar la imagen posible P2 con la imagen P2 original
+    cout << "Comparando Posible_P2 con P2.bmp" << endl;
+    int anchoP2 = 0, altoP2 = 0;
+    unsigned char* realP2 = cargarPixeles("Caso1/P2.bmp", anchoP2, altoP2);
+    unsigned char* posibleP2Comparar = cargarPixeles("Caso1/Posible_P2.bmp", anchoP2, altoP2);
 
-    if (!realI_O || !posibleI_O || anchoI_O != anchoPosible || altoI_O != altoPosible) {
+    if (!realP2 || !posibleP2Comparar || anchoP2 != ancho || altoP2 != alto) {
         cout << "No se pudo cargar alguna imagen o no coinciden en dimensiones." << endl;
     } else {
-        int total = anchoI_O * altoI_O * 3;
+        int total = anchoP2 * altoP2 * 3;
         bool iguales = true;
         for (int i = 0; i < total; ++i) {
-            if (realI_O[i] != posibleI_O[i]) {
-                cout << "Diferencia encontrada en el byte " << i << ": I_O = "
-                     << (int)realI_O[i] << ", PosibleI_O = " << (int)posibleI_O[i] << endl;
+            if (realP2[i] != posibleP2Comparar[i]) {
+                cout << "Diferencia encontrada en el byte " << i << ": P2 = "
+                     << (int)realP2[i] << ", Posible_P2 = " << (int)posibleP2Comparar[i] << endl;
                 iguales = false;
                 break;
             }
         }
         if (iguales) {
-            cout << "PosibleI_O es igual a I_O" << endl;
+            cout << "Posible_P2 es igual a P2." << endl;
         } else {
-            cout << "PosibleI_O NO es igual a I_O" << endl;
+            cout << "Posible_P2 NO es igual a P2." << endl;
         }
     }
 
-    delete[] realI_O;
-    delete[] posibleI_O;
+    delete[] realP2;
+    delete[] posibleP2Comparar;
+
     return 0;
 }
-// ==== FUNCIONES (sin modificar) ====
+//== FUNCIONES (sin modificar) ====
 unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto) {
     QImage imagen(rutaEntrada);
     if (imagen.isNull()) {
