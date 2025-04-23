@@ -17,16 +17,30 @@ bool generarYCompararEnmascaramiento(unsigned char* imagen, unsigned char* masca
 unsigned char* identificarTransformaciones(unsigned char* imgEncriptada, unsigned char* imgIM, unsigned char* mascara, unsigned int* datosTxt, int semilla, int num_pixeles, int tamaño);
 void reconstruirImagenCaso1();
 void reconstruirImagenCaso2();
-int main()
-{
+void reconstruirImagenDesdeCaso(QString carpeta, int pasoMaximo);
+
+//======== main ========
+int main() {
     int opcion;
-    cout << "Seleccione el caso a reconstruir (1 o 2): ";
+    cout << "Seleccione la opcion que desea (1) para desencriptar el Caso1, (2) para el Caso2 o (3) si desea hacerlo en una carpeta aparte: ";
     cin >> opcion;
 
     if (opcion == 1) {
         reconstruirImagenCaso1();
     } else if (opcion == 2) {
         reconstruirImagenCaso2();
+    } else if (opcion == 3) {
+        QString carpeta;
+        int pasoMaximo;
+        cout << "Ingrese el nombre de la carpeta donde se encuentra la imagen que desea desencriptar (por ejemplo: Caso1 o Caso2): ";
+        string input;
+        cin >> input;
+        carpeta = QString::fromStdString(input);
+
+        cout <<  "Ingrese el numero del ultimo enmascaramiento (ultimo archivo .txt, por ejemplo 2 o 6): ";
+        cin >> pasoMaximo;
+
+        reconstruirImagenDesdeCaso(carpeta, pasoMaximo);
     } else {
         cout << "Opcion invalida." << endl;
     }
@@ -34,37 +48,69 @@ int main()
     return 0;
 }
 
-
-
-//== FUNCIONES (sin modificar) ====
-
-
-
-
+//======== FUNCIONES ========
 unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto) {
+  /*
+  Carga una imagen BMP y extrae sus píxeles en formato RGB888 (sin canal alfa).
+
+  Esta función abre un archivo de imagen BMP utilizando la clase QImage de Qt,
+  convierte su formato a RGB888 (24 bits por píxel: 8 para R, 8 para G y 8 para B),
+  y copia todos los píxeles en un arreglo lineal de tipo unsigned char.
+
+  El arreglo resultante contiene los canales RGB de cada píxel de forma secuencial y sin padding.
+
+  parametro: rutaEntrada Ruta del archivo BMP que se desea cargar (QString).
+  parametro: ancho Referencia donde se guardará el ancho (en píxeles) de la imagen cargada.
+  parametro: alto Referencia donde se guardará el alto (en píxeles) de la imagen cargada.
+  return de un puntero a un arreglo dinámico de bytes con los datos RGB de la imagen cargada.
+          Devuelve nullptr si la imagen no pudo cargarse.
+
+  Es responsabilidad del usuario liberar la memoria con `delete[]`.
+  */
     QImage imagen(rutaEntrada);
     if (imagen.isNull()) {
         cout << "Error: No se pudo cargar la imagen BMP." << endl;
         return nullptr;
     }
+
     imagen = imagen.convertToFormat(QImage::Format_RGB888);
     ancho = imagen.width();
     alto = imagen.height();
     int dataSize = ancho * alto * 3;
+
     unsigned char* datosPixeles = new unsigned char[dataSize];
+
     for (int y = 0; y < alto; ++y) {
-        const uchar* srcLine = imagen.scanLine(y);
-        unsigned char* dstLine = datosPixeles + y * ancho * 3;
-        memcpy(dstLine, srcLine, ancho * 3);
+        const uchar* srcLine = imagen.scanLine(y);               // Línea de la imagen original
+        unsigned char* dstLine = datosPixeles + y * ancho * 3;   // Línea correspondiente en el arreglo
+        memcpy(dstLine, srcLine, ancho * 3);                     // Copiar los 3 bytes por píxel (R, G, B)
     }
+
     return datosPixeles;
 }
 
 bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida) {
+ /*
+ Guarda una imagen BMP a partir de un arreglo de píxeles RGB.
+
+  Esta función recibe un arreglo de bytes que representa una imagen en formato RGB888
+  (3 bytes por píxel: R, G y B), construye un objeto QImage a partir de esos datos
+  y guarda la imagen resultante en el disco en formato BMP.
+
+  parametro: datosPixeles Puntero al arreglo de bytes RGB a exportar (RGB por píxel).
+  parametro: ancho Ancho de la imagen (en píxeles).
+  parametro: alto Alto de la imagen (en píxeles).
+  parametro: rutaSalida Ruta del archivo BMP de salida (QString).
+  return true si la imagen se guardó correctamente, false si ocurrió un error.
+
+  Esta función no libera la memoria del arreglo datosPixeles.
+ */
     QImage imagenSalida(ancho, alto, QImage::Format_RGB888);
+
     for (int y = 0; y < alto; ++y) {
         memcpy(imagenSalida.scanLine(y), datosPixeles + y * ancho * 3, ancho * 3);
     }
+
     if (!imagenSalida.save(rutaSalida, "BMP")) {
         cout << "Error: No se pudo guardar la imagen BMP modificada.";
         return false;
@@ -75,32 +121,55 @@ bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString ru
 }
 
 unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles) {
+/*
+  Carga desde un archivo .txt la semilla y los valores RGB del enmascaramiento.
+
+  Esta función lee primero una semilla desde la primera línea del archivo,
+  luego cuenta la cantidad de píxeles que aparecen (cada uno con 3 valores: R, G, B),
+  y finalmente vuelve a abrir el archivo para cargar todos los datos RGB en un arreglo dinámico.
+
+  parametro:rutaArchivo Ruta del archivo .txt que contiene la semilla y los valores RGB.
+  parametro: semilla Variable de salida donde se guarda la semilla leída.
+  parametro: num_pixeles Variable de salida que indica cuántos píxeles fueron leídos (tripletes RGB).
+  return de un puntero a un arreglo dinámico de enteros que contiene todos los valores RGB esperados.
+          Devuelve nullptr si hubo error al abrir o leer el archivo.
+
+  El usuario debe liberar la memoria del arreglo con `delete[]`.
+ */
     ifstream archivo(rutaArchivo);
     if (!archivo.is_open()) {
         cout << "No se pudo abrir el archivo." << endl;
         return nullptr;
     }
+
     archivo >> semilla;
     int r, g, b;
     num_pixeles = 0;
     while (archivo >> r >> g >> b) {
-        num_pixeles++;
+        num_pixeles++;  // Contamos cuántos tripletes de valores hay
     }
+
     archivo.close();
     archivo.open(rutaArchivo);
     if (!archivo.is_open()) {
         cout << "Error al reabrir el archivo." << endl;
         return nullptr;
     }
+
     archivo >> semilla;
     unsigned int* rgb = new unsigned int[num_pixeles * 3];
+
     for (int i = 0; i < num_pixeles * 3; i += 3) {
         archivo >> r >> g >> b;
         rgb[i] = r;
         rgb[i + 1] = g;
         rgb[i + 2] = b;
     }
+
     archivo.close();
+
+    cout << "Semilla: " << semilla << endl;
+    cout << "Cantidad de pixeles leidos: " << num_pixeles << endl;
 
     return rgb;
 }
@@ -242,6 +311,12 @@ void reconstruirImagenCaso1() {
     if (!P1) {
         cout << "Fallo al obtener P1 desde P2." << endl;
         delete[] P2;
+        delete [] I_D;
+        delete[] mascara;
+        delete [] IM;
+        delete[] datosM2;
+        delete[] P1;
+        delete[] datosM1;
         return;
     }
     exportarImagen(P1, ancho, alto, "Caso1/Posible_P1.bmp");
@@ -266,8 +341,13 @@ void reconstruirImagenCaso1() {
     unsigned char* IO = identificarTransformaciones(P1, IM, mascara, datosM0, semilla0, numpix0, tamaño);
     if (!IO) {
         cout << "Fallo al obtener I_O desde P1." << endl;
+        delete [] I_D;
+        delete[] mascara;
+        delete [] IM;
+        delete[] datosM2;
         delete[] P2;
         delete[] P1;
+        delete[] datosM1;
         return;
     }
     exportarImagen(IO, ancho, alto, "Caso1/Posible_I_O.bmp");
@@ -301,11 +381,12 @@ void reconstruirImagenCaso2() {
         delete[] IM;
         delete[] mascara;
         delete[] ID;
-        return ;
+        return;
     }
 
     int tamaño = ancho * alto * 3;
-    unsigned char* actual = ID;
+    unsigned char* imgActual = ID;
+    unsigned char* imgAnterior = nullptr;
 
     for (int i = 6; i >= 0; --i) {
         QString nombreArchivoTxt = QString("Caso2/M%1.txt").arg(i);
@@ -313,39 +394,125 @@ void reconstruirImagenCaso2() {
         unsigned int* datos = cargarSemillaYEnmascaramiento(nombreArchivoTxt.toStdString().c_str(), semilla, numpix);
         if (!datos) {
             cout << "Error cargando " << nombreArchivoTxt.toStdString() << endl;
+            if (imgAnterior != nullptr) {
+                delete[] imgAnterior;
+            }
             delete[] IM;
             delete[] mascara;
-            delete[] actual;
-            return ;
+            delete[] imgActual;
+            return;
         }
 
-        unsigned char* siguiente = identificarTransformaciones(actual, IM, mascara, datos, semilla, numpix, tamaño);
-        if (!siguiente) {
+        unsigned char* imgSiguiente = identificarTransformaciones(imgActual, IM, mascara, datos, semilla, numpix, tamaño);
+        if (!imgSiguiente) {
             cout << "Fallo al identificar transformación en paso " << i << endl;
+            if (imgAnterior != nullptr) {
+                delete[] imgAnterior;
+            }
             delete[] IM;
             delete[] mascara;
-            delete[] actual;
+            delete[] imgActual;
             delete[] datos;
-            return ;
+            return;
         }
 
         QString nombreSalida = QString("Caso2/Posible_P%1.bmp").arg(i);
         if (i == 0) nombreSalida = "Caso2/Posible_I_O.bmp";
-        exportarImagen(siguiente, ancho, alto, nombreSalida);
-
-        // Liberar imagen anterior (excepto la primera que era ID)
-        if (i < 6) {
-            delete[] actual;
-        }
+        exportarImagen(imgSiguiente, ancho, alto, nombreSalida);
 
         delete[] datos;
-        actual = siguiente;
+
+        if (imgAnterior != nullptr) {
+            delete[] imgAnterior;
+        }
+        imgAnterior = imgActual;
+        imgActual = imgSiguiente;
     }
 
-    // === Liberar memoria final ===
+    if (imgAnterior != nullptr) {
+        delete[] imgAnterior;
+    }
     delete[] IM;
     delete[] mascara;
-    delete[] actual;
+    delete[] imgActual;
 
-    return ;
+    return;
+}
+void reconstruirImagenDesdeCaso(QString carpeta, int ultimotxt) {
+    QString rutaIM = carpeta + "/I_M.bmp";
+    QString rutaMascara = carpeta + "/M.bmp";
+    QString rutaID = carpeta + "/I_D.bmp";
+
+    int ancho = 0, alto = 0;
+    unsigned char* IM = cargarPixeles(rutaIM, ancho, alto);
+    unsigned char* mascara = cargarPixeles(rutaMascara, ancho, alto);
+    unsigned char* ID = cargarPixeles(rutaID, ancho, alto);
+
+    if (!IM || !mascara || !ID) {
+        cout << "Error cargando imagenes base desde la carpeta " << carpeta.toStdString() << endl;
+        delete[] IM;
+        delete[] mascara;
+        delete[] ID;
+        return;
+    }
+
+    int tamaño = ancho * alto * 3;
+    unsigned char* imgActual = ID;
+    unsigned char* imgAnterior = nullptr;
+
+    for (int i = ultimotxt; i >= 0; i--) {
+        QString nombreArchivoTxt = carpeta + QString("/M%1.txt").arg(i);
+        int semilla, numpixels;
+        unsigned int* datos = cargarSemillaYEnmascaramiento(nombreArchivoTxt.toStdString().c_str(), semilla, numpixels);
+        if (!datos) {
+            cout << "Error cargando " << nombreArchivoTxt.toStdString() << endl;
+            if (imgAnterior != nullptr)
+            {
+                delete [] imgAnterior;
+            }
+            delete[] IM;
+            delete[] mascara;
+            delete[] imgActual;
+            return;
+        }
+
+        unsigned char* imgSiguiente = identificarTransformaciones(imgActual, IM, mascara, datos, semilla, numpixels, tamaño);
+        if (!imgSiguiente) {
+            cout << "Fallo al identificar transformacion en paso " << i << endl;
+            if (imgAnterior != nullptr)
+            {
+                delete [] imgAnterior;
+            }
+            delete[] IM;
+            delete[] mascara;
+            delete[] imgActual;
+            delete[] datos;
+            return;
+        }
+
+        QString nombreSalida;
+        if (i == 0)
+            nombreSalida = carpeta + "/Posible_I_O.bmp";
+        else
+            nombreSalida = carpeta + QString("/Posible_P%1.bmp").arg(i);
+
+        exportarImagen(imgSiguiente, ancho, alto, nombreSalida);
+
+        delete[] datos;  //  Liberar siempre
+
+        if (imgAnterior != nullptr)
+        {
+            delete [] imgAnterior;
+        }
+        imgAnterior = imgActual;
+        imgActual = imgSiguiente; //  Siempre actualizar
+    }
+    if (imgAnterior != nullptr)
+    {
+        delete [] imgAnterior;
+    }
+    delete[] IM;
+    delete[] mascara;
+    delete[] imgActual;  // Última imagen generada
+    return;
 }
