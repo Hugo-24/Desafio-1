@@ -6,6 +6,7 @@
 using namespace std;
 
 // Declaración de funciones
+
 unsigned char* cargarPixeles(QString rutaEntrada, int &ancho, int &alto);
 bool exportarImagen(unsigned char* datosPixeles, int ancho, int alto, QString rutaSalida);
 unsigned int* cargarSemillaYEnmascaramiento(const char* rutaArchivo, int &semilla, int &num_pixeles);
@@ -18,39 +19,21 @@ void reconstruirImagenDesdeCaso(QString carpeta, int pasoMaximo);
 
 //======== main ========
 int main() {
-    int opcion;
-    cout << "Seleccione la opcion que desea (1) para desencriptar el Caso1, (2) para el Caso2 o (3) si desea hacerlo en una carpeta aparte: ";
-    cin >> opcion;
+    QString carpeta;
+    int pasoMaximo;
+    cout << "Ingrese el nombre de la carpeta donde se encuentra la imagen que desea desencriptar (por ejemplo: Caso1 o Caso2): ";
+    string input;
+    cin >> input;
+    carpeta = QString::fromStdString(input);
 
-    // Opción 1: desencriptar automáticamente el Caso1 (2 pasos)
-    if (opcion == 1) {
-       reconstruirImagenDesdeCaso("Caso1", 2);
+    cout <<  "Ingrese el numero del ultimo enmascaramiento (ultimo archivo .txt, por ejemplo 2 o 6): ";
+    cin >> pasoMaximo;
 
-    // Opción 2: desencriptar automáticamente el Caso2 (6 pasos)
-    } else if (opcion == 2) {
-       reconstruirImagenDesdeCaso("Caso2", 6);
-
-    // Opción 3: ingresar carpeta y número de pasos manualmente
-    } else if (opcion == 3) {
-        QString carpeta;
-        int pasoMaximo;
-
-        cout << "Ingrese el nombre de la carpeta donde se encuentra la imagen que desea desencriptar (por ejemplo: Caso1 o Caso2): ";
-        string input;
-        cin >> input;
-        carpeta = QString::fromStdString(input);
-
-        cout <<  "Ingrese el numero del ultimo enmascaramiento (ultimo archivo .txt, por ejemplo 2 o 6): ";
-        cin >> pasoMaximo;
-
-        if (pasoMaximo < 0) {
-            cout << "Numero de paso invalido." << endl;
-            return 1;
-        }
-        reconstruirImagenDesdeCaso(carpeta, pasoMaximo);
-    } else {
-        cout << "Opcion invalida." << endl;
+    if (pasoMaximo < 0) {
+        cout << "Numero de paso invalido." << endl;
+        return 1;
     }
+    reconstruirImagenDesdeCaso(carpeta, pasoMaximo);
     return 0;
 }
 
@@ -270,8 +253,8 @@ void liberar(unsigned int*& ptr) {
 }
 
 void reconstruirImagenDesdeCaso(QString carpeta, int ultimotxt) {
-// Reconstruye la imagen original a partir de los archivos en la carpeta indicada.
-// Aplica transformaciones inversas paso a paso usando los archivos .txt de enmascaramiento.
+    // Reconstruye la imagen original a partir de los archivos en la carpeta indicada.
+    // Aplica transformaciones inversas paso a paso usando los archivos .txt de enmascaramiento.
     QString rutaIM = carpeta + "/I_M.bmp";
     QString rutaMascara = carpeta + "/M.bmp";
     QString rutaID = carpeta + "/I_D.bmp";
@@ -321,9 +304,14 @@ void reconstruirImagenDesdeCaso(QString carpeta, int ultimotxt) {
         }
 
         // Definir el nombre del archivo de salida BMP
+        // Asigna nombre del archivo según el paso:
+        // si i == 0 ➜ Imagen_Original.bmp
+        // si i != 0 ➜ Posible_P<i>.bmp
+        // Se usa operador ternario ? para simplificar la condición
         QString nombreSalida = (i == 0) ? carpeta + "/Imagen_Original.bmp" : carpeta + QString("/Posible_P%1.bmp").arg(i);
         exportarImagen(imgSiguiente, ancho, alto, nombreSalida);
-
+        cout << "Proceso de desencriptacion finalizado con exito." << endl;
+        cout << "Imagen desencriptada guardada como " << "/Imagen_Original.bmp" << endl;
         liberar(datos);
         if (imgAnterior != nullptr) delete[] imgAnterior;
         imgAnterior = imgActual;
@@ -335,6 +323,5 @@ void reconstruirImagenDesdeCaso(QString carpeta, int ultimotxt) {
     liberar(IM);
     liberar(mascara);
     liberar(imgActual);
-    cout << "Proceso de desencriptacion finalizado con exito." << endl;
     return;
 }
